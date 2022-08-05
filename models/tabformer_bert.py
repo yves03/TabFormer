@@ -2,11 +2,11 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 
-from transformers.modeling_bert import ACT2FN, BertLayerNorm
-from transformers.modeling_bert import BertForMaskedLM
-from transformers.configuration_bert import BertConfig
+from transformers.activations import ACT2FN
+from transformers import BertForMaskedLM, BertConfig
 from models.custom_criterion import CustomAdaptiveLogSoftmax
 
+BertLayerNorm = nn.LayerNorm
 
 class TabFormerBertConfig(BertConfig):
     def __init__(
@@ -137,11 +137,15 @@ class TabFormerBertForMaskedLM(BertForMaskedLM):
 
             nfeas = len(global_ids_field)
             loss_fct = self.get_criterion(field_name, nfeas, prediction_scores.device)
-
+            
             masked_lm_loss_field = loss_fct(prediction_scores_field.view(-1, len(global_ids_field)),
                                             masked_lm_labels_field_local.view(-1))
 
-            total_masked_lm_loss += masked_lm_loss_field
+            # Due to some change in the Pytorch implementation of CrossEntropyLoss
+            # if the target consist only of ignored_index, it now returns NaN 
+            # instead of 0. This is to circumvent this behavior.
+            if not masked_lm_loss_field.isnan():
+                total_masked_lm_loss += masked_lm_loss_field
 
         return (total_masked_lm_loss,) + outputs
 

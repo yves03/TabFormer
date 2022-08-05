@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple, Union
 import torch
 from transformers import DataCollatorForLanguageModeling
+from transformers.data.data_collator import _torch_collate_batch
 
 
 class TransDataCollatorForLanguageModeling(DataCollatorForLanguageModeling):
@@ -8,17 +9,21 @@ class TransDataCollatorForLanguageModeling(DataCollatorForLanguageModeling):
     def __call__(
             self, examples: List[Union[List[int], torch.Tensor, Dict[str, torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
-        batch = self._tensorize_batch(examples)
+
+        batch = _torch_collate_batch(examples, self.tokenizer, pad_to_multiple_of=self.pad_to_multiple_of)
+        
         sz = batch.shape
         if self.mlm:
             batch = batch.view(sz[0], -1)
             inputs, labels = self.mask_tokens(batch)
             return {"input_ids": inputs.view(sz), "masked_lm_labels": labels.view(sz)}
+
         else:
             labels = batch.clone().detach()
             if self.tokenizer.pad_token_id is not None:
                 labels[labels == self.tokenizer.pad_token_id] = -100
             return {"input_ids": batch, "labels": labels}
+
 
     def mask_tokens(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """

@@ -59,28 +59,29 @@ class TabFormerEmbeddings(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        if not hasattr(config, 'num_layers'):
-            config.num_layers = 1
-        if not hasattr(config, 'nhead'):
-            config.nhead = 8
-
         self.word_embeddings = nn.Embedding(config.vocab_size, config.field_hidden_size,
                                             padding_idx=getattr(config, 'pad_token_id', 0), sparse=False)
 
-        encoder_layer = nn.TransformerEncoderLayer(d_model=config.field_hidden_size, nhead=config.nhead,
-                                                   dim_feedforward=config.field_hidden_size)
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=config.num_layers)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=config.field_hidden_size, nhead=config.tab_embeddings_num_attention_heads,
+                                                   dim_feedforward=config.field_hidden_size, dropout=config.tab_embedding_dropout)
+        
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=config.tab_embedding_num_encoder_layers)
 
         self.lin_proj = nn.Linear(config.field_hidden_size * config.ncols, config.hidden_size)
 
     def forward(self, input_ids):
+
         inputs_embeds = self.word_embeddings(input_ids)
         embeds_shape = list(inputs_embeds.size())
 
+        # [batch, seq_len, ncols, field_hidden_size] -> [batch*seq_len, ncols, field_hidden_size]
         inputs_embeds = inputs_embeds.view([-1] + embeds_shape[-2:])
+        # [batch*seq_len, ncols, field_hidden_size] -> [ncols, batch*seq_len, field_hidden_size]
         inputs_embeds = inputs_embeds.permute(1, 0, 2)
         inputs_embeds = self.transformer_encoder(inputs_embeds)
+        # [ncols, batch*seq_len, field_hidden_size] -> [batch*seq_len, ncols, field_hidden_size]
         inputs_embeds = inputs_embeds.permute(1, 0, 2)
+        # [batch*seq_len, ncols, field_hidden_size] -> [batch, seq_len, ncols*field_hidden_size]
         inputs_embeds = inputs_embeds.contiguous().view(embeds_shape[0:2]+[-1])
 
         inputs_embeds = self.lin_proj(inputs_embeds)

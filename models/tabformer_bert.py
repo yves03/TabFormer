@@ -15,6 +15,9 @@ class TabFormerBertConfig(BertConfig):
         ncols=12,
         vocab_size=30522,
         field_hidden_size=64,
+        tab_embeddings_num_attention_heads=12,
+        tab_embedding_num_encoder_layers=1,
+        tab_embedding_dropout=0.1,
         hidden_size=768,
         num_attention_heads=12,
         pad_token_id=0,
@@ -24,10 +27,13 @@ class TabFormerBertConfig(BertConfig):
 
         self.ncols = ncols
         self.field_hidden_size = field_hidden_size
+        self.tab_embedding_num_encoder_layers = tab_embedding_num_encoder_layers
+        self.tab_embedding_dropout = tab_embedding_dropout
         self.hidden_size = hidden_size
         self.flatten = flatten
         self.vocab_size = vocab_size
-        self.num_attention_heads=num_attention_heads
+        self.tab_embeddings_num_attention_heads = tab_embeddings_num_attention_heads
+        self.num_attention_heads = num_attention_heads
 
 class TabFormerBertPredictionHeadTransform(nn.Module):
     def __init__(self, config):

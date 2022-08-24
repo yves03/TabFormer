@@ -43,23 +43,34 @@ class TabFormerHierarchicalLM(PreTrainedModel):
 
 
 class TabFormerBertLM:
-    def __init__(self, special_tokens, vocab, field_ce=False, flatten=False, ncols=None, field_hidden_size=768):
+    def __init__(self, special_tokens, vocab, field_ce=False, flatten=False, ncols=None, 
+                 field_hidden_size=64, tab_embeddings_num_attention_heads=8, num_attention_heads=12,
+                 hidden_size=768, tab_embedding_num_encoder_layers=1, tab_embedding_dropout=0.1):
 
         self.ncols = ncols
         self.vocab = vocab
         vocab_file = self.vocab.filename
-        hidden_size = field_hidden_size if flatten else (field_hidden_size * self.ncols)
+        
+        assert field_hidden_size % tab_embeddings_num_attention_heads == 0, \
+               "\"field_hidden_size\" must be divisible by \"tab_embeddings_num_attention_heads\""
+            
+        assert hidden_size % num_attention_heads == 0, \
+               "\"hidden_size\" must be divisible by \"num_attention_heads\""
 
         self.config = TabFormerBertConfig(vocab_size=len(self.vocab),
                                           ncols=self.ncols,
                                           hidden_size=hidden_size,
                                           field_hidden_size=field_hidden_size,
-                                          flatten=flatten,
-                                          num_attention_heads=self.ncols)
-
+                                          tab_embeddings_num_attention_heads=tab_embeddings_num_attention_heads,
+                                          tab_embedding_num_encoder_layers=tab_embedding_num_encoder_layers,
+                                          tab_embedding_dropout=tab_embedding_dropout,
+                                          num_attention_heads=num_attention_heads,
+                                          flatten=flatten)
+        
         self.tokenizer = BertTokenizer(vocab_file,
                                        do_lower_case=False,
                                        **special_tokens)
+        
         self.model = self.get_model(field_ce, flatten)
 
     def get_model(self, field_ce, flatten):

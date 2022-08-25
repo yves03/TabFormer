@@ -38,7 +38,10 @@ class TabFormerBertConfig(BertConfig):
 class TabFormerBertPredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.field_hidden_size, config.hidden_size)
+        
+        assert config.hidden_size % config.ncols == 0
+        
+        self.dense = nn.Linear(int(config.hidden_size/config.ncols), config.hidden_size)
         if isinstance(config.hidden_act, str):
             self.transform_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -112,7 +115,7 @@ class TabFormerBertForMaskedLM(BertForMaskedLM):
         )
 
         sequence_output = outputs[0]  # [bsz * seqlen * hidden]
-
+        
         if not self.config.flatten:
             output_sz = list(sequence_output.size())
             expected_sz = [output_sz[0], output_sz[1]*self.config.ncols, -1]

@@ -56,6 +56,9 @@ class TabFormerBertLM:
             
         assert hidden_size % num_attention_heads == 0, \
                "\"hidden_size\" must be divisible by \"num_attention_heads\""
+        
+        assert hidden_size % ncols == 0, \
+               "\"hidden_size\" must be divisible by \"ncols\""
 
         self.config = TabFormerBertConfig(vocab_size=len(self.vocab),
                                           ncols=self.ncols,

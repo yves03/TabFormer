@@ -4,6 +4,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers import (
     BertTokenizer,
     BertForMaskedLM,
+    BertForSequenceClassification,
     GPT2Config,
     GPT2LMHeadModel
 )
@@ -36,6 +37,21 @@ class TabFormerHierarchicalLM(PreTrainedModel):
 
         self.tab_embeddings = TabFormerEmbeddings(self.config)
         self.tb_model = TabFormerBertForMaskedLM(self.config, vocab)
+
+    def forward(self, input_ids, **input_args):
+        inputs_embeds = self.tab_embeddings(input_ids)
+        return self.tb_model(inputs_embeds=inputs_embeds, **input_args)
+    
+class TabFormerHierarchicalClassification(PreTrainedModel):
+    base_model_prefix = "bert"
+
+    def __init__(self, config, vocab):
+        super().__init__(config)
+
+        self.config = config
+
+        self.tab_embeddings = TabFormerEmbeddings(self.config)
+        self.tb_model = BertForSequenceClassification(self.config)
 
     def forward(self, input_ids, **input_args):
         inputs_embeds = self.tab_embeddings(input_ids)
@@ -89,6 +105,34 @@ class TabFormerBertLM:
             model = TabFormerHierarchicalLM(self.config, self.vocab)
 
         return model
+    
+class TabFormerBertClassification(TabFormerBertLM):
+    def __init__(self, special_tokens, vocab, field_ce=False, flatten=False, ncols=None, 
+                 field_hidden_size=64, tab_embeddings_num_attention_heads=8, num_attention_heads=12,
+                 hidden_size=768, tab_embedding_num_encoder_layers=1, tab_embedding_dropout=0.1, num_labels=None):
+
+        self.num_labels = num_labels
+        
+        super().__init__(special_tokens, vocab, field_ce, flatten, ncols, 
+                         field_hidden_size, tab_embeddings_num_attention_heads, num_attention_heads,
+                         hidden_size, tab_embedding_num_encoder_layers, tab_embedding_dropout)
+
+    def get_model(self, field_ce, flatten):
+
+        self.config.num_labels = self.num_labels
+        
+        if flatten and not field_ce:
+            # flattened vanilla BERT
+            model = BertForSequenceClassification(self.config)
+        elif flatten and field_ce:
+            # flattened field CE BERT
+            model = BertForSequenceClassification(self.config)
+        else:
+            # hierarchical field CE BERT
+            model = TabFormerHierarchicalClassification(self.config, self.vocab)
+
+        return model
+
 
 
 class TabFormerGPT2:
